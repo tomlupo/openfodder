@@ -219,6 +219,28 @@ inline void cSurface::paletteSDLColorSet( size_t id, cPalette *pPalette ) {
 }
 
 /**
+ * The palette entry closest to an 8-bit RGB colour, for drawing over the picture in whatever
+ * palette is loaded (the palette itself holds 6-bit values)
+ */
+uint8 cSurface::paletteNearest(uint8 pRed, uint8 pGreen, uint8 pBlue) const {
+	uint8 Nearest = 0;
+	int NearestDistance = -1;
+
+	for (size_t ColorID = 0; ColorID < g_MaxColors; ++ColorID) {
+		const int Red = (mPaletteNew[ColorID].mRed << 2) - pRed;
+		const int Green = (mPaletteNew[ColorID].mGreen << 2) - pGreen;
+		const int Blue = (mPaletteNew[ColorID].mBlue << 2) - pBlue;
+		const int Distance = Red * Red + Green * Green + Blue * Blue;
+
+		if (NearestDistance < 0 || Distance < NearestDistance) {
+			NearestDistance = Distance;
+			Nearest = (uint8)ColorID;
+		}
+	}
+	return Nearest;
+}
+
+/**
  * Draw the Surface Buffer to SDLSurface, using the surface palette
  */
 void cSurface::draw(const int16 pSkipX, const int16 pSkipY) {

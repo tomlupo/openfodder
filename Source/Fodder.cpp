@@ -2146,6 +2146,8 @@ void cFodder::keyProcess(uint8 pKeyCode, bool pPressed)
         }
     }
 
+#ifndef EMSCRIPTEN
+    // In the browser the page sizes the canvas and owns the pointer
     if ((pKeyCode == SDL_SCANCODE_EQUALS && pPressed) || (pKeyCode == SDL_SCANCODE_KP_PLUS && pPressed))
     {
         if(!mStartParams->mDemoPlayback)
@@ -2170,6 +2172,7 @@ void cFodder::keyProcess(uint8 pKeyCode, bool pPressed)
         if (mStartParams->mMouseAlternative)
             mWindow->SetRelativeMouseMode(mParams->mMouseLocked);
     }
+#endif
 
     if (pKeyCode == SDL_SCANCODE_ESCAPE && pPressed && mPhase_Aborted)
         mPhase_Aborted2 = true;

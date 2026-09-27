@@ -157,11 +157,33 @@ if(EMSCRIPTEN)
         OUTPUT_NAME "OpenFodder"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/RunE"
         SUFFIX ".html")
+
+    # The page around the game (Projects/emscripten/web): a phone-friendly page with touch
+    # controls, saves kept in IndexedDB, and a service worker for offline play
+    set(OPENFODDER_WEB "${CMAKE_SOURCE_DIR}/Projects/emscripten/web")
     target_link_options(openfodder PRIVATE
         "-sUSE_SDL=3"
         "-sALLOW_MEMORY_GROWTH=1"
-        "-sASSERTIONS=1"
-        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Run@/")
+        "-sINVOKE_RUN=0"
+        "-sEXPORTED_FUNCTIONS=_main,_of_state,_of_map,_of_arm,_of_touch_mode,_of_key,_of_stick,_of_stick_throw"
+        "-sEXPORTED_RUNTIME_METHODS=callMain,FS"
+        "-lidbfs.js"
+        "SHELL:--shell-file ${OPENFODDER_WEB}/shell.html"
+        "SHELL:--pre-js ${OPENFODDER_WEB}/pre.js"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Run@/"
+        "SHELL:--preload-file ${CMAKE_SOURCE_DIR}/Projects/emscripten/openfodder.ini@/openfodder.ini"
+        "SHELL:--exclude-file */.git"
+        "SHELL:--exclude-file */.gitmodules"
+        "SHELL:--exclude-file */README.md"
+        "SHELL:--exclude-file */Run/Saves/*"
+        "SHELL:--exclude-file */Run/openfodder.ini"
+        "$<IF:$<CONFIG:Debug>,-sASSERTIONS=1,-O3>"
+        "$<$<NOT:$<CONFIG:Debug>>:-sENVIRONMENT=web>")
+    set_property(TARGET openfodder APPEND PROPERTY LINK_DEPENDS
+        "${OPENFODDER_WEB}/shell.html" "${OPENFODDER_WEB}/pre.js")
+    add_custom_command(TARGET openfodder POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -DWEB=${OPENFODDER_WEB} -DOUT=${CMAKE_SOURCE_DIR}/RunE -P ${OPENFODDER_WEB}/install.cmake
+        COMMENT "Adding the page's icons, manifest and service worker to RunE")
 else()
     target_link_libraries(openfodder PRIVATE SDL3::SDL3 SDL3_mixer::SDL3_mixer Threads::Threads)
 endif()

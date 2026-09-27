@@ -79,13 +79,19 @@ cSound_Amiga::~cSound_Amiga() {
 
 	Stop();
 
+#ifndef EMSCRIPTEN
+	// Let the audio thread finish; in the browser the audio callback runs on the main thread,
+	// so there is nothing to wait for, and without Asyncify a delay freezes the page
 	SDL_Delay(100);
+#endif
     if (mAudioStream) {
         SDL_DestroyAudioStream(mAudioStream);
         mAudioStream = nullptr;
     }
 	SDL_DestroyMutex(mLock);
+#ifndef EMSCRIPTEN
 	SDL_Delay(100);
+#endif
 }
 
 void cSound_Amiga::audioBufferFill( short *pBuffer, int pBufferSize ) {

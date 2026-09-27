@@ -1,0 +1,50 @@
+name: Web
+
+# Builds the WebAssembly version and publishes it to GitHub Pages.
+# The demo campaigns come from the Run/ submodule (OpenFodder/data) at its pinned commit.
+
+on:
+  push:
+    branches: [master, feat/iphone-web]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Same image as Projects/emscripten/build_emscripten.sh, so a local build matches this one
+    container: emscripten/emsdk:6.0.10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          emcmake cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+          ls -l RunE
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: RunE
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

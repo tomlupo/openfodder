@@ -280,9 +280,8 @@ bool sGameVersion::CanUseAmigaSound() const {
 
 std::shared_ptr<cSound> sGameVersion::GetSound() const {
 
-#ifdef OPENFODDER_NO_MIXER
-	return std::make_shared<cSound_Null>();
-#endif
+	// Amiga sound (Paula and Rjp1) plays through SDL's own audio stream, so it needs no mixer;
+	// only PC sound does, and that branch returns silence below when there is no mixer
 
 	// Check for JON.INS in the game data folder, this allows replacing PC audio with Amiga for both CF1 and CF2
 	if (CanUseAmigaSound())

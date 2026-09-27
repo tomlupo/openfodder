@@ -1,0 +1,16 @@
+{
+  "name": "Open Fodder",
+  "short_name": "Open Fodder",
+  "description": "Cannon Fodder on the open-source Open Fodder engine, with the Amiga magazine demo campaigns.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b0e09",
+  "theme_color": "#0b0e09",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

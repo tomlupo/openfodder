@@ -97,14 +97,20 @@ void cFodder::Campaign_Select_DrawMenu(const char* pTitle, const char* pSubTitle
         GUI_Button_Setup(&cFodder::GUI_Button_Load_Down);
     }
 
+#ifndef EMSCRIPTEN
+    // In a browser there is nowhere to exit to, and the options menu runs a blocking loop
+    // that the browser's main loop can't service
     GUI_Button_Draw_Small("EXIT", 0xB3 + YOffset);
     GUI_Button_Setup(&cFodder::GUI_Button_Load_Exit);
+#endif
 
     GUI_Button_Draw_SmallAt("ABOUT", 0xA, 0xB3 + YOffset);
     GUI_Button_Setup(&cFodder::GUI_Button_Show_About);
 
+#ifndef EMSCRIPTEN
     GUI_Button_Draw_SmallAt("OPTIONS", 0xA, 0x9C + YOffset);
     GUI_Button_Setup(&cFodder::GUI_Button_Show_Options);
+#endif
 
 
     int16 ItemCount = 0;
