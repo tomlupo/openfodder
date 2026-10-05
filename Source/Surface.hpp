@@ -104,4 +104,5 @@ public:
 
 	inline bool			isPaletteAdjusting() const { return mPaletteAdjusting; }
     inline void         resetPaletteAdjusting() { mPaletteAdjusting = false; }
+	uint8			paletteNearest(uint8 pRed, uint8 pGreen, uint8 pBlue) const;
 };

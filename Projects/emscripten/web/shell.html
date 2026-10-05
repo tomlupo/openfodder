@@ -1,0 +1,846 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Open Fodder">
+<meta name="theme-color" content="#0b0e09">
+<meta name="description" content="Cannon Fodder on the open-source Open Fodder engine: the Amiga magazine demo campaigns, playable in the browser and on a phone.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>Open Fodder</title>
+<style>
+  :root {
+    --bg: #0b0e09;
+    --khaki: #dcd3a2;
+    --khaki-dim: #a39d7c;
+    --olive: #5e6b3a;
+    --red: #c8321f;
+    --red-hot: #e0472f;
+    --panel: rgba(14, 18, 11, 0.94);
+    --line: rgba(220, 211, 162, 0.22);
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--khaki);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overscroll-behavior: none; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+  a { color: var(--khaki); }
+  [hidden] { display: none !important; }
+
+  /* The game */
+  #stage { position: fixed; inset: 0; overflow: hidden; background: #000; }
+  #canvas { position: absolute; left: 0; top: 0; width: 0; height: 0; display: block; background: #000; outline: none; touch-action: none; }
+  #safe { position: fixed; visibility: hidden; pointer-events: none; padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l); }
+
+  /* Start screen */
+  #start {
+    position: fixed; inset: 0; z-index: 40; overflow-y: auto; touch-action: pan-y;
+    display: grid; place-items: center;
+    padding: calc(var(--safe-t) + 20px) calc(var(--safe-r) + 20px) calc(var(--safe-b) + 20px) calc(var(--safe-l) + 20px);
+    background:
+      radial-gradient(120% 90% at 50% 0%, rgba(94, 107, 58, 0.30), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 9px),
+      var(--bg);
+    transition: opacity 0.45s ease;
+  }
+  #start.gone { opacity: 0; pointer-events: none; }
+  .card { width: min(100%, 760px); display: grid; gap: 22px 40px; align-items: center; }
+  .brand { display: grid; justify-items: center; text-align: center; gap: 12px; }
+  .poppy { width: 84px; height: 84px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.55)); animation: sway 7s ease-in-out infinite; }
+  @keyframes sway { 50% { transform: rotate(9deg) scale(1.03); } }
+  h1 { margin: 0; font-size: clamp(34px, 7vw, 54px); line-height: 1; font-weight: 900; letter-spacing: 0.08em; color: var(--khaki); text-shadow: 0 3px 0 #000, 0 0 24px rgba(0, 0, 0, 0.6); }
+  .tagline { margin: 0; color: var(--khaki-dim); font-style: italic; letter-spacing: 0.04em; }
+  .progress { width: min(280px, 80%); height: 4px; border-radius: 2px; background: rgba(220, 211, 162, 0.14); overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--olive), var(--khaki)); transition: width 0.25s ease; }
+  .status { margin: 0; min-height: 1.45em; font-size: 13px; color: var(--khaki-dim); font-variant-numeric: tabular-nums; }
+  .play {
+    min-width: 230px; padding: 16px 30px; border-radius: 999px; border: 2px solid var(--khaki);
+    font-weight: 800; font-size: 17px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--khaki);
+    background: rgba(220, 211, 162, 0.06); box-shadow: 0 0 0 0 rgba(200, 50, 31, 0.5); transition: background 0.15s, transform 0.1s;
+  }
+  .play:active, .play.pressed { background: var(--red); border-color: var(--red-hot); color: #fff; transform: scale(0.97); }
+  .ready .play { animation: pulse 2.2s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(220, 211, 162, 0.35); } 70%, 100% { box-shadow: 0 0 0 16px rgba(220, 211, 162, 0); } }
+  .info { display: grid; gap: 14px; font-size: 14px; }
+  .legend { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .legend li { display: grid; grid-template-columns: minmax(max-content, 38%) 1fr; gap: 12px; align-items: baseline; }
+  .legend b { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--khaki); white-space: nowrap; }
+  .legend span { color: var(--khaki-dim); }
+  .links { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; }
+  .links a, .links button { color: var(--khaki); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(220, 211, 162, 0.4); }
+  .fine { margin: 0; font-size: 11.5px; line-height: 1.5; color: rgba(163, 157, 124, 0.8); }
+  .install { margin: 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 13px; color: var(--khaki-dim); }
+  .install strong { color: var(--khaki); }
+  .touch-only { display: none; }
+  .touch .touch-only { display: revert; }
+  .touch .mouse-only { display: none; }
+  @media (orientation: landscape) and (min-width: 560px) {
+    .card { grid-template-columns: 1fr 1fr; }
+    .brand { border-right: 1px solid var(--line); padding-right: 36px; }
+  }
+  @media (max-height: 430px) and (orientation: landscape) {
+    .poppy { width: 60px; height: 60px; }
+    h1 { font-size: 36px; }
+    .brand { gap: 9px; }
+    .play { padding: 13px 26px; }
+    .info { gap: 10px; font-size: 13px; }
+  }
+
+  /* Touch controls, drawn over the game */
+  #hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
+  .started #hud { display: block; }
+  .hud {
+    pointer-events: auto; position: absolute; display: grid; place-items: center; touch-action: none;
+    border-radius: 50%; border: 2px solid rgba(220, 211, 162, 0.55); color: var(--khaki);
+    background: rgba(9, 12, 7, 0.42); font-weight: 800; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+    transition: background 0.08s, transform 0.08s, opacity 0.2s;
+  }
+  .hud svg { width: 44%; height: 44%; display: block; }
+  .hud.down { background: rgba(200, 50, 31, 0.8); border-color: #f2a594; color: #fff; transform: scale(0.95); }
+  .hud .label { position: absolute; bottom: 13%; font-size: 9px; letter-spacing: 0.14em; }
+  .thumb { display: none; }
+  .touch.mission .thumb { display: grid; }
+  .touch.mission:not(.has-rockets) #swap { display: none; }
+  .no-ammo #throw { opacity: 0.35; }
+  #fire { width: 94px; height: 94px; left: calc(var(--safe-l) + 16px); bottom: calc(var(--safe-b) + 16px); }
+  #fire svg { width: 50%; height: 50%; margin-top: -10px; }
+  #throw { width: 64px; height: 64px; left: calc(var(--safe-l) + 118px); bottom: calc(var(--safe-b) + 22px); }
+  #throw svg { margin-top: -8px; }
+  #swap { width: 46px; height: 46px; left: calc(var(--safe-l) + 34px); bottom: calc(var(--safe-b) + 122px); }
+  .lefty #fire, .lefty #throw, .lefty #swap { left: auto; }
+  .lefty #fire { right: calc(var(--safe-r) + 16px); }
+  .lefty #throw { right: calc(var(--safe-r) + 118px); }
+  .lefty #swap { right: calc(var(--safe-r) + 34px); }
+  .stick-zone { display: none; position: absolute; width: 150px; height: 150px; bottom: calc(var(--safe-b) + 4px); pointer-events: auto; touch-action: none; }
+  #stick-move { left: calc(var(--safe-l) + 4px); }
+  #stick-aim { right: calc(var(--safe-r) + 4px); }
+  .touch.mission.sticks .stick-zone { display: block; }
+  .stick-base { position: absolute; left: 50%; top: 50%; width: 98px; height: 98px; margin: -49px 0 0 -49px; border-radius: 50%; border: 2px solid rgba(220, 211, 162, 0.5); background: rgba(9, 12, 7, 0.35); }
+  .stick-knob { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(220, 211, 162, 0.5); border: 2px solid rgba(220, 211, 162, 0.9); }
+  .stick-zone .label { position: absolute; left: 0; right: 0; bottom: 2px; text-align: center; font-size: 9px; font-weight: 800; letter-spacing: 0.14em; color: rgba(220, 211, 162, 0.8); }
+  .stick-zone.active .stick-base { border-color: var(--khaki); }
+  #stick-aim.active .stick-knob { background: rgba(200, 50, 31, 0.85); border-color: #f2a594; }
+  .touch.mission.sticks #fire { display: none; }
+  .touch.mission.sticks #throw { left: auto; right: calc(var(--safe-r) + 158px); bottom: calc(var(--safe-b) + 20px); }
+  .touch.mission.sticks #swap { left: auto; right: calc(var(--safe-r) + 166px); bottom: calc(var(--safe-b) + 96px); }
+  .rocket-icon { display: none; }
+  .rockets .rocket-icon { display: block; }
+  .rockets .grenade-icon { display: none; }
+  #topbar { position: absolute; top: calc(var(--safe-t) + 10px); right: calc(var(--safe-r) + 12px); display: flex; gap: 6px; }
+  .lefty #topbar { right: auto; left: calc(var(--safe-l) + 12px); flex-direction: row-reverse; }
+  .pill { position: static; width: 40px; height: 40px; border-radius: 12px; font-size: 14px; letter-spacing: 0; opacity: 0.8; }
+  .pill svg { width: 50%; height: 50%; }
+  .squad { display: none; }
+  .touch.mission.split .squad { display: grid; }
+  .mission-only { display: none; }
+  .mission .mission-only { display: grid; }
+
+  /* Paused, menu sheet, rotate prompt, errors */
+  .overlay {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    padding: calc(var(--safe-t) + 16px) calc(var(--safe-r) + 16px) calc(var(--safe-b) + 16px) calc(var(--safe-l) + 16px);
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .panel { width: min(100%, 420px); max-height: 100%; overflow-y: auto; touch-action: pan-y; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+  .panel h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--khaki-dim); display: flex; justify-content: space-between; align-items: center; }
+  .paused-title { font-size: 44px; font-weight: 900; letter-spacing: 0.2em; text-align: center; margin: 4px 0 18px; text-shadow: 0 3px 0 #000; }
+  #paused .panel { text-align: center; }
+  .items { display: grid; gap: 6px; }
+  .item { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 13px 14px; border-radius: 12px; background: rgba(220, 211, 162, 0.06); text-align: left; text-decoration: none; font-weight: 600; }
+  .item:active { background: rgba(220, 211, 162, 0.16); }
+  .item small { font-weight: 500; color: var(--khaki-dim); }
+  .item.danger { color: #f0a090; }
+  .close { width: 34px; height: 34px; border-radius: 10px; font-size: 22px; line-height: 1; color: var(--khaki); background: rgba(220, 211, 162, 0.08); }
+  @media (max-height: 500px) {
+    .panel { padding: 14px; }
+    #sheet .panel { width: min(100%, 560px); }
+    .items { grid-template-columns: 1fr 1fr; }
+    .item { padding: 11px 12px; }
+  }
+  #rotate { z-index: 50; display: none; flex-direction: column; gap: 18px; text-align: center; background: var(--bg); font-weight: 700; letter-spacing: 0.06em; }
+  .portrait #rotate { display: grid; }
+  #rotate svg { width: 76px; height: 76px; margin: 0 auto; animation: turn 2.4s ease-in-out infinite; }
+  @keyframes turn { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+  #fatal { z-index: 60; }
+  .toast {
+    position: fixed; z-index: 30; left: 50%; bottom: calc(var(--safe-b) + 18px); transform: translateX(-50%);
+    padding: 10px 16px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas></div>
+<div id="safe"></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-poppy" viewBox="-50 -50 100 100">
+      <g fill="#c8321f" stroke="#8c1910" stroke-width="1.6">
+        <ellipse cx="-16" cy="1" rx="27" ry="30" />
+        <ellipse cx="16" cy="1" rx="27" ry="30" />
+        <ellipse cx="0" cy="-15" rx="30" ry="27" />
+        <ellipse cx="0" cy="16" rx="29" ry="26" />
+      </g>
+      <circle r="11.5" fill="#141210" />
+      <circle r="14.4" fill="none" stroke="#141210" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="0.01 5.03" />
+      <polygon fill="#5e6b3a" points="0,-6 1.22,-2.96 4.24,-4.24 2.96,-1.22 6,0 2.96,1.22 4.24,4.24 1.22,2.96 0,6 -1.22,2.96 -4.24,4.24 -2.96,1.22 -6,0 -2.96,-1.22 -4.24,-4.24 -1.22,-2.96" />
+    </symbol>
+    <symbol id="i-fire" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="12" cy="12" r="7" /><path d="M12 1.5v5M12 17.5v5M1.5 12h5M17.5 12h5" /><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    </symbol>
+    <symbol id="i-grenade" viewBox="0 0 24 24">
+      <path d="M9 5.5h5.5v3H9z" fill="currentColor" />
+      <path d="M14.5 6.5c2.2-.2 3.8-1.4 4.6-3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      <ellipse cx="11.75" cy="15.25" rx="6.25" ry="7" fill="currentColor" />
+      <path d="M5.8 13.3h11.9M5.8 17.2h11.9M9.5 8.6v13.3M14 8.6v13.3" stroke="rgba(0,0,0,.4)" stroke-width="1.1" />
+    </symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24">
+      <path d="M20.6 3.4c-4.8-.3-8.7 1.8-11.6 5.4l-2.8 3.4 5.6 5.6 3.4-2.8c3.6-2.9 5.7-6.8 5.4-11.6z" fill="currentColor" />
+      <path d="M8.6 9.6 4 9.9l-2.2 2.9 4.4.9zM14.4 15.4l-.3 4.6-2.9 2.2-.9-4.4z" fill="currentColor" opacity=".75" />
+      <circle cx="15.3" cy="8.7" r="1.8" fill="rgba(0,0,0,.45)" />
+      <path d="M6.3 17.7 3 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+    </symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 8h14l-3.5-3.5M20 16H6l3.5 3.5" />
+    </symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2.2" /><circle cx="12" cy="12" r="2.2" /><circle cx="19" cy="12" r="2.2" /></symbol>
+    <symbol id="i-phone" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.6"><rect x="14" y="4" width="20" height="40" rx="4" /><path d="M21 38h6" stroke-linecap="round" /></symbol>
+  </defs>
+</svg>
+
+<div id="hud">
+  <button class="hud thumb" id="fire" aria-label="Fire: hold, then touch where to shoot"><svg><use href="#i-fire" /></svg><span class="label">Fire</span></button>
+  <button class="hud thumb" id="throw" aria-label="Grenade or rocket: hold, then tap where to throw">
+    <svg class="grenade-icon"><use href="#i-grenade" /></svg><svg class="rocket-icon"><use href="#i-rocket" /></svg>
+    <span class="label grenade-icon">Grenade</span><span class="label rocket-icon">Rocket</span>
+  </button>
+  <button class="hud thumb" id="swap" aria-label="Swap grenades and rockets"><svg><use href="#i-swap" /></svg></button>
+  <div class="stick-zone" id="stick-move" aria-label="Move stick"><div class="stick-base"><div class="stick-knob"></div></div><span class="label">MOVE</span></div>
+  <div class="stick-zone" id="stick-aim" aria-label="Aim and fire stick"><div class="stick-base"><div class="stick-knob"></div></div><span class="label">FIRE</span></div>
+  <div id="topbar">
+    <button class="hud pill squad" data-key="30" aria-label="Squad 1">1</button>
+    <button class="hud pill squad" data-key="31" aria-label="Squad 2">2</button>
+    <button class="hud pill squad" data-key="32" aria-label="Squad 3">3</button>
+    <button class="hud pill mission-only" id="pause" aria-label="Pause"><svg><use href="#i-pause" /></svg></button>
+    <button class="hud pill" id="menu" aria-label="Menu"><svg><use href="#i-menu" /></svg></button>
+  </div>
+</div>
+
+<section id="start">
+  <div class="card">
+    <div class="brand">
+      <svg class="poppy"><use href="#i-poppy" /></svg>
+      <h1>OPEN FODDER</h1>
+      <p class="tagline">War has never been so much fun</p>
+      <div class="progress"><i id="bar"></i></div>
+      <p class="status" id="status">Downloading the game…</p>
+      <button class="play" id="play">Tap to start</button>
+    </div>
+    <div class="info">
+      <ul class="legend touch-only">
+        <li><b>Tap</b><span>Move the squad there</span></li>
+        <li><b>Hold Fire + touch</b><span>Shoot where your finger is</span></li>
+        <li><b>Hold Grenade + tap</b><span>Throw at that spot (rockets once you have them)</span></li>
+        <li><b>Turn sideways</b><span>The game plays in landscape</span></li>
+      </ul>
+      <ul class="legend mouse-only">
+        <li><b>Left click</b><span>Move the squad</span></li>
+        <li><b>Right click</b><span>Fire at the pointer</span></li>
+        <li><b>Right + left</b><span>Throw a grenade or fire a rocket</span></li>
+        <li><b>Space · P · 1 2 3</b><span>Swap grenade/rocket · pause · squads</span></li>
+      </ul>
+      <p class="install" id="install-ios" hidden>Play it full screen: tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>.</p>
+      <p class="links">
+        <button id="install-app" hidden>Install the app</button>
+        <a href="https://github.com/tomlupo/openfodder" target="_blank" rel="noopener">Source code (GPL-3.0)</a>
+        <a href="https://openfodder.com/" target="_blank" rel="noopener">openfodder.com</a>
+      </p>
+      <p class="fine">The Open Fodder engine is free software by the Open Fodder contributors. Cannon Fodder is © Sensible Software. The campaigns here are the Amiga magazine cover-disk demos that the Open Fodder project distributes.</p>
+    </div>
+  </div>
+</section>
+
+<div class="overlay" id="paused" hidden>
+  <div class="panel">
+    <div class="paused-title">PAUSED</div>
+    <button class="play" id="resume">Resume</button>
+  </div>
+</div>
+
+<div class="overlay" id="sheet" hidden>
+  <div class="panel" role="dialog" aria-label="Menu">
+    <h2><span>Open Fodder</span><button class="close" id="sheet-close" aria-label="Close">×</button></h2>
+    <div class="items" id="items">
+      <button class="item" id="item-resume">Back to the game</button>
+      <button class="item" id="item-sound">Sound <small id="sound-state">On</small></button>
+      <button class="item touch-only" id="item-controls">Controls <small id="controls-state">Classic</small></button>
+      <button class="item touch-only" id="item-hand">Fire button <small id="hand-state">Left thumb</small></button>
+      <button class="item" id="item-help">How to play</button>
+      <button class="item" id="item-fullscreen" hidden>Full screen</button>
+      <button class="item" id="item-install" hidden>Install the app</button>
+      <button class="item danger mission-only" id="item-quit">Quit to campaign select</button>
+      <a class="item" href="https://github.com/tomlupo/openfodder" target="_blank" rel="noopener">Source code <small>GPL-3.0</small></a>
+    </div>
+    <div id="help" hidden>
+      <ul class="legend touch-only">
+        <li><b>Tap the map</b><span>Move the squad there</span></li>
+        <li><b>Hold Fire</b><span>Then touch or drag on the map to shoot there</span></li>
+        <li><b>Hold Grenade</b><span>Then tap the map to throw. With rockets it fires a rocket</span></li>
+        <li><b>⇄</b><span>Swap between grenades and rockets</span></li>
+        <li><b>1 2 3</b><span>Switch squads, or tap them in the sidebar</span></li>
+        <li><b>Sidebar</b><span>Tap a soldier or squad to split and regroup, as with a mouse</span></li>
+        <li><b>Twin sticks</b><span>Under Controls: the left stick walks, the right stick aims and fires, GRENADE throws where you aim</span></li>
+      </ul>
+      <ul class="legend mouse-only">
+        <li><b>Left click</b><span>Move the squad</span></li>
+        <li><b>Right click</b><span>Fire at the pointer</span></li>
+        <li><b>Right, then left</b><span>Throw a grenade or fire a rocket</span></li>
+        <li><b>Space</b><span>Swap grenades and rockets</span></li>
+        <li><b>1 2 3</b><span>Switch squads</span></li>
+        <li><b>P</b><span>Pause</span></li>
+        <li><b>Esc, Esc</b><span>Quit to campaign select</span></li>
+      </ul>
+      <p class="fine" style="margin-top:12px">Magazine demos have no save points and no overview map: that is how the originals were.</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="rotate"><svg><use href="#i-phone" /></svg><div>Turn your phone sideways to play</div><small class="fine">Screen not turning? Switch off Portrait Orientation Lock in Control Center.</small></div>
+
+<div class="overlay" id="fatal" hidden>
+  <div class="panel">
+    <h2>Something went wrong</h2>
+    <p id="fatal-message" style="margin:0 0 16px;color:var(--khaki-dim)"></p>
+    <button class="play" onclick="location.reload()">Reload</button>
+  </div>
+</div>
+
+<script>
+  (function () {
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const root = document.documentElement;
+    const canvas = $('canvas');
+    const params = new URLSearchParams(location.search);
+    const store = {
+      get(key) { try { return localStorage.getItem('openfodder.' + key); } catch (e) { return null; } },
+      set(key, value) { try { localStorage.setItem('openfodder.' + key, value); } catch (e) { /* private mode */ } },
+    };
+
+    // SDL scancodes the engine listens for, the finger modes of_touch_mode takes, and the of_state bits
+    const KEY = { SQUAD1: 30, P: 19, SPACE: 44, ESCAPE: 41 };
+    const TOUCH = { MOVE: 0, FIRE: 1, THROW: 2 };
+    const STATE = { MISSION: 1, PAUSED: 2, ROCKETS_ARMED: 4, GRENADES_ARMED: 8, HAS_GRENADES: 16, HAS_ROCKETS: 32, SQUAD2: 128, SQUAD3: 256, ABOUT: 512 };
+    const ROWS = 14;          // 224 px: the height of the original Amiga screen
+    const MENU_WIDTH = 320;   // menus are laid out for the original screen width
+    const SIDEBAR = 48;       // the in-game sidebar, left of the map
+
+    const isIOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+    const touchUI = params.has('touch') ? params.get('touch') !== '0' : matchMedia('(any-pointer: coarse)').matches;
+    root.classList.toggle('touch', touchUI);
+
+    let runtimeReady = false, wantStart = false, started = false;
+    let scale = 1;            // the engine's integer window scale
+    let state = 0;            // last of_state()
+    let map = 0;              // last of_map(): the mission map's size in tiles
+    let muted = store.get('muted') === '1';
+    let lefty = store.get('hand') === 'left';
+    let controls = (params.get('controls') || store.get('controls')) === 'sticks' ? 'sticks' : 'classic';
+    const stickResets = [];
+    let pausedBySheet = false;
+    let installPrompt = null;
+
+    // ---- Emscripten -----------------------------------------------------------------------
+
+    const Module = window.Module = {
+      canvas,
+      noInitialRun: true,
+      print: (...args) => console.log(...args),
+      printErr: (...args) => console.warn(...args),
+      setStatus(text) {
+        const m = /\((\d+(?:\.\d+)?)\/(\d+)\)/.exec(text || '');
+        if (m) {
+          const done = Number(m[1]), total = Number(m[2]);
+          $('bar').style.width = (100 * done / total).toFixed(1) + '%';
+          $('status').textContent = 'Downloading the game · ' + (done / 1048576).toFixed(1) + ' of ' + (total / 1048576).toFixed(1) + ' MB';
+        }
+      },
+      onRuntimeInitialized() {
+        runtimeReady = true;
+        $('bar').style.width = '100%';
+        $('status').textContent = 'Ready';
+        root.classList.add('ready');
+        registerServiceWorker();
+        maybeStart();
+      },
+      onAbort(what) { fatal('The game stopped (' + what + ').'); },
+    };
+
+    function fatal(message) {
+      $('fatal-message').textContent = message + ' Reloading the page usually fixes it.';
+      $('fatal').hidden = false;
+    }
+    window.addEventListener('error', e => { if (!started) fatal(e.message || 'A script failed to load.'); });
+    canvas.addEventListener('webglcontextlost', e => { e.preventDefault(); fatal('The browser reset the graphics.'); });
+
+    // ---- Starting: one tap unlocks audio and starts the engine ---------------------------
+
+    function audioContext() {
+      return Module.SDL3 && Module.SDL3.audioContext;
+    }
+
+    // iOS plays audio only from a context created or resumed during a tap, so make it here and
+    // hand it to SDL, which uses Module.SDL3.audioContext when one is already there
+    let volume = null;
+    function unlockAudio() {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* older Safari */ }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      Module.SDL3 = Module.SDL3 || {};
+      if (!Module.SDL3.audioContext) {
+        const ctx = new AC();
+        // SDL connects its output to ctx.destination: give it a gain node there instead, so the
+        // sound switch turns the volume down rather than suspending a context SDL keeps resuming
+        try {
+          volume = ctx.createGain();
+          volume.connect(ctx.destination);
+          Object.defineProperty(ctx, 'destination', { value: volume });
+        } catch (e) {
+          volume = null;
+        }
+        const source = ctx.createBufferSource();
+        source.buffer = ctx.createBuffer(1, 1, 22050);
+        source.connect(ctx.destination);
+        source.start(0);
+        Module.SDL3.audioContext = ctx;
+      }
+      applySound();
+      if (audioContext().state !== 'running') audioContext().resume();
+    }
+
+    // iOS suspends audio when the app goes to the background; any tap brings it back
+    ['pointerdown', 'touchend', 'keydown'].forEach(type => window.addEventListener(type, () => {
+      const ctx = audioContext();
+      if (ctx && ctx.state !== 'running' && (volume || !muted)) ctx.resume();
+    }, { capture: true, passive: true }));
+
+    function goFullscreen() {
+      if (isIOS || !touchUI || !document.fullscreenEnabled || document.fullscreenElement) return;
+      root.requestFullscreen({ navigationUI: 'hide' })
+        .then(() => screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape'))
+        .catch(() => { /* not allowed here */ });
+    }
+
+    $('play').addEventListener('click', () => {
+      if (wantStart) return;
+      wantStart = true;
+      unlockAudio();
+      goFullscreen();
+      $('play').classList.add('pressed');
+      $('play').textContent = runtimeReady ? 'Starting…' : 'Starting when loaded…';
+      maybeStart();
+    });
+
+    function needsRotate() {
+      return touchUI && innerHeight > innerWidth && Math.min(screen.width, screen.height) < 600;
+    }
+
+    function maybeStart() {
+      if (!wantStart || started || !runtimeReady || needsRotate()) return;
+      started = true;
+
+      const classic = params.get('view') === 'classic';
+      const columns = classic ? 20 : chooseColumns();
+      const args = ['--window-scale', String(chooseScale(columns))];
+      if (!classic) args.push('--columns', String(columns), '--rows', String(ROWS));
+      if (params.has('cheats')) args.push('--cheats');
+
+      root.classList.add('started');
+      $('start').classList.add('gone');
+      setTimeout(() => { $('start').hidden = true; }, 500);
+      Module.callMain(args);
+      canvas.focus({ preventScroll: true });
+      requestAnimationFrame(poll);
+    }
+
+    // ---- Fitting the game to the screen --------------------------------------------------
+
+    function insets() {
+      const s = getComputedStyle($('safe'));
+      return { top: parseFloat(s.paddingTop) || 0, right: parseFloat(s.paddingRight) || 0, left: parseFloat(s.paddingLeft) || 0 };
+    }
+
+    // The area the game may use: inside the notch insets, but free to run under the home indicator
+    function playArea() {
+      const inset = insets();
+      return { x: inset.left, y: inset.top, w: innerWidth - inset.left - inset.right, h: innerHeight - inset.top };
+    }
+
+    // As many 16-pixel map columns as the screen's shape allows, so the view fills a wide phone
+    function chooseColumns() {
+      const area = playArea();
+      return Math.max(20, Math.min(40, Math.round(area.w / area.h * ROWS)));
+    }
+
+    // Render at an integer scale at least as sharp as the screen; the browser scales that down smoothly
+    function chooseScale(columns) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 4);
+      scale = Math.max(1, Math.min(6, Math.ceil(playArea().h * dpr / (ROWS * 16))));
+      // keep the canvas within about 4 megapixels, which phones handle comfortably
+      while (scale > 1 && columns * 16 * ROWS * 16 * scale * scale > 4.2e6) --scale;
+      return scale;
+    }
+
+    // The canvas box must be exactly the picture: SDL maps touches and clicks to the element's box.
+    // Menus only use the left 320 pixels, so there the canvas slides right and is clipped to them;
+    // missions use the full width, clipped the same way to a map smaller than the view.
+    function layout() {
+      const portrait = needsRotate();
+      // Turning the phone upright mid-mission hides the game behind the prompt, so pause it
+      if (portrait && !root.classList.contains('portrait') && (state & STATE.MISSION) && !(state & STATE.PAUSED)) tapKey(KEY.P);
+      root.classList.toggle('portrait', portrait);
+      if (!started || !canvas.width) return;
+
+      const area = playArea();
+      const gameW = canvas.width / scale, gameH = canvas.height / scale;
+      let shownW = gameW, shownH = gameH;
+      if (!(state & (STATE.MISSION | STATE.ABOUT))) {
+        shownW = Math.min(MENU_WIDTH, gameW);
+      } else if ((state & STATE.MISSION) && map) {
+        // A map smaller than the view leaves black beyond its edge: show the sidebar and the map only
+        shownW = Math.min(gameW, SIDEBAR + (map & 0xffff) * 16);
+        shownH = Math.min(gameH, (map >>> 16) * 16);
+      }
+      const k = Math.min(area.w / shownW, area.h / shownH);
+
+      canvas.style.width = (gameW * k) + 'px';
+      canvas.style.height = (gameH * k) + 'px';
+      canvas.style.left = (area.x + (area.w - shownW * k) / 2) + 'px';
+      canvas.style.top = (area.y + (area.h - shownH * k) / 2) + 'px';
+      canvas.style.clipPath = (shownW < gameW || shownH < gameH)
+        ? 'inset(0 ' + ((gameW - shownW) * k) + 'px ' + ((gameH - shownH) * k) + 'px 0)' : 'none';
+    }
+
+    window.addEventListener('resize', layout);
+    if (window.visualViewport) visualViewport.addEventListener('resize', layout);
+    window.addEventListener('orientationchange', () => setTimeout(() => { layout(); maybeStart(); }, 250));
+    window.addEventListener('resize', maybeStart);
+    layout();
+
+    // ---- Following the engine ------------------------------------------------------------
+
+    let lastWidth = 0, lastHeight = 0;
+    function poll() {
+      const next = Module._of_state ? Module._of_state() : 0;
+      if (next !== state) {
+        const changed = next ^ state;
+        state = next;
+        // The grenade button shows what it will throw, by of_arm's rule: the armed weapon while
+        // it has ammo, else grenades, else rockets
+        const hasGrenades = !!(state & STATE.HAS_GRENADES), hasRockets = !!(state & STATE.HAS_ROCKETS);
+        const rockets = ((state & STATE.ROCKETS_ARMED) && hasRockets) || (!hasGrenades && hasRockets);
+        root.classList.toggle('mission', !!(state & STATE.MISSION));
+        root.classList.toggle('rockets', !!rockets);
+        root.classList.toggle('no-ammo', !(state & (STATE.HAS_GRENADES | STATE.HAS_ROCKETS)));
+        root.classList.toggle('has-rockets', !!(state & STATE.HAS_ROCKETS));
+        root.classList.toggle('split', !!(state & (STATE.SQUAD2 | STATE.SQUAD3)));
+        $('paused').hidden = !(state & STATE.PAUSED) || !$('sheet').hidden;
+        if (changed & (STATE.MISSION | STATE.ABOUT)) {
+          layout();
+          releaseThumbs();
+        }
+      }
+      const nextMap = (state & STATE.MISSION) && Module._of_map ? Module._of_map() : 0;
+      if (nextMap !== map) {
+        map = nextMap;
+        layout();
+      }
+      if (canvas.width !== lastWidth || canvas.height !== lastHeight) {
+        lastWidth = canvas.width;
+        lastHeight = canvas.height;
+        layout();
+      }
+      requestAnimationFrame(poll);
+    }
+
+    // ---- Controls ------------------------------------------------------------------------
+
+    function key(code, down) {
+      if (Module._of_key) Module._of_key(code, down ? 1 : 0);
+    }
+    function tapKey(code) {
+      key(code, true);
+      setTimeout(() => key(code, false), 50);
+    }
+
+    // FIRE and GRENADE are held: while one is down, a finger on the map shoots or throws
+    const held = [];
+    function setTouchMode() {
+      if (Module._of_touch_mode) Module._of_touch_mode(held.length ? held[held.length - 1].mode : TOUCH.MOVE);
+    }
+    function holdButton(button, mode, onPress) {
+      button.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        button.setPointerCapture(e.pointerId);
+        if (onPress) onPress();
+        held.push({ mode, id: e.pointerId, button });
+        button.classList.add('down');
+        if (navigator.vibrate) navigator.vibrate(8);
+        setTouchMode();
+      });
+      const release = e => {
+        const i = held.findIndex(h => h.id === e.pointerId && h.button === button);
+        if (i < 0) return;
+        held.splice(i, 1);
+        if (!held.some(h => h.button === button)) button.classList.remove('down');
+        setTouchMode();
+      };
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, release));
+    }
+    function releaseThumbs() {
+      stickResets.forEach(reset => reset());
+      held.length = 0;
+      document.querySelectorAll('.hud.down').forEach(b => b.classList.remove('down'));
+      setTouchMode();
+    }
+    $('throw').addEventListener('pointerdown', e => {
+      if (controls !== 'sticks') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (Module._of_arm) Module._of_arm();
+      if (Module._of_stick_throw) Module._of_stick_throw();
+      $('throw').classList.add('down');
+      setTimeout(() => $('throw').classList.remove('down'), 160);
+    });
+    holdButton($('fire'), TOUCH.FIRE);
+    holdButton($('throw'), TOUCH.THROW, () => { if (Module._of_arm) Module._of_arm(); });
+
+    // Buttons that stand for a key: pressed while the finger is down, like the real key
+    function keyButton(button, code, onPress) {
+      button.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        button.setPointerCapture(e.pointerId);
+        button.classList.add('down');
+        if (code != null) key(code, true);
+        if (onPress) onPress();
+      });
+      const release = () => {
+        if (!button.classList.contains('down')) return;
+        button.classList.remove('down');
+        if (code != null) key(code, false);
+      };
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => button.addEventListener(type, release));
+    }
+    keyButton($('swap'), KEY.SPACE);
+    keyButton($('pause'), KEY.P);
+    document.querySelectorAll('.squad').forEach(b => keyButton(b, Number(b.dataset.key)));
+    // On click, not pointerdown: the tap's own click would otherwise land on the sheet's backdrop and close it
+    $('menu').addEventListener('click', openSheet);
+
+    $('resume').addEventListener('click', () => tapKey(KEY.P));
+
+    // Leaving the app mid-mission pauses it, so the squad isn't overrun while the phone is locked
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        releaseThumbs();
+        if ((state & STATE.MISSION) && !(state & STATE.PAUSED)) tapKey(KEY.P);
+      }
+    });
+
+    // Keep iOS from zooming or scrolling the page under the game
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('dblclick', e => e.preventDefault());
+    document.addEventListener('touchmove', e => {
+      if (!e.target.closest || !e.target.closest('#start, .panel')) e.preventDefault();
+    }, { passive: false });
+
+    // ---- Menu sheet ------------------------------------------------------------------------
+
+    function openSheet() {
+      releaseThumbs();
+      $('help').hidden = true;
+      $('items').hidden = false;
+      $('sheet').hidden = false;
+      $('paused').hidden = true;
+      if ((state & STATE.MISSION) && !(state & STATE.PAUSED)) {
+        tapKey(KEY.P);
+        pausedBySheet = true;
+      }
+    }
+    function closeSheet() {
+      $('sheet').hidden = true;
+      if (pausedBySheet && (state & STATE.PAUSED)) tapKey(KEY.P);
+      else $('paused').hidden = !(state & STATE.PAUSED);
+      pausedBySheet = false;
+    }
+    $('sheet-close').addEventListener('click', closeSheet);
+    $('item-resume').addEventListener('click', closeSheet);
+    $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeSheet(); });
+
+    function showSound() {
+      $('sound-state').textContent = muted ? 'Off' : 'On';
+    }
+    function applySound() {
+      const ctx = audioContext();
+      // Muted, the game lets other apps' audio play on ('ambient'); with sound, it plays
+      // even with the mute switch on ('playback')
+      try { if (navigator.audioSession) navigator.audioSession.type = muted ? 'ambient' : 'playback'; } catch (e) { /* older Safari */ }
+      if (volume) volume.gain.value = muted ? 0 : 1;
+      else if (ctx) muted ? ctx.suspend() : ctx.resume();
+    }
+    $('item-sound').addEventListener('click', () => {
+      muted = !muted;
+      store.set('muted', muted ? '1' : '0');
+      applySound();
+      showSound();
+    });
+
+    // A stick sends its direction, -1..1 on each axis, while the thumb is on it
+    function stick(zone, id) {
+      const base = zone.querySelector('.stick-base'), knob = zone.querySelector('.stick-knob');
+      const RANGE = 40;
+      let pointer = null;
+      const send = (x, y) => { if (Module._of_stick) Module._of_stick(id, x, y); };
+      const update = e => {
+        const r = base.getBoundingClientRect();
+        let dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+        const length = Math.hypot(dx, dy);
+        if (length > RANGE) { dx *= RANGE / length; dy *= RANGE / length; }
+        knob.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
+        send(dx / RANGE, dy / RANGE);
+      };
+      const reset = () => {
+        if (pointer === null) return;
+        pointer = null;
+        zone.classList.remove('active');
+        knob.style.transform = '';
+        send(0, 0);
+      };
+      zone.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        if (pointer !== null) return;
+        pointer = e.pointerId;
+        zone.setPointerCapture(pointer);
+        zone.classList.add('active');
+        update(e);
+      });
+      zone.addEventListener('pointermove', e => { if (e.pointerId === pointer) update(e); });
+      ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(type => zone.addEventListener(type, e => {
+        if (e.pointerId === pointer) reset();
+      }));
+      stickResets.push(reset);
+    }
+    stick($('stick-move'), 0);
+    stick($('stick-aim'), 1);
+
+    function showControls() {
+      root.classList.toggle('sticks', controls === 'sticks');
+      $('controls-state').textContent = controls === 'sticks' ? 'Twin sticks' : 'Classic';
+    }
+    $('item-controls').addEventListener('click', () => {
+      controls = controls === 'sticks' ? 'classic' : 'sticks';
+      store.set('controls', controls);
+      releaseThumbs();
+      showControls();
+    });
+
+    function showHand() {
+      root.classList.toggle('lefty', lefty);
+      $('hand-state').textContent = lefty ? 'Right thumb' : 'Left thumb';
+    }
+    $('item-hand').addEventListener('click', () => {
+      lefty = !lefty;
+      store.set('hand', lefty ? 'left' : 'right');
+      showHand();
+    });
+
+    $('item-help').addEventListener('click', () => {
+      $('items').hidden = true;
+      $('help').hidden = false;
+    });
+
+    if (document.fullscreenEnabled && !isIOS) {
+      $('item-fullscreen').hidden = false;
+      $('item-fullscreen').addEventListener('click', () => {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else root.requestFullscreen().catch(() => { /* refused */ });
+      });
+    }
+
+    // Quit: un-pause, then Escape twice, which the engine takes as "abort and leave the campaign"
+    $('item-quit').addEventListener('click', () => {
+      pausedBySheet = false;
+      $('sheet').hidden = true;
+      if (state & STATE.PAUSED) tapKey(KEY.P);
+      setTimeout(() => { tapKey(KEY.ESCAPE); setTimeout(() => tapKey(KEY.ESCAPE), 120); }, 120);
+    });
+
+    // ---- Installing --------------------------------------------------------------------------
+
+    if (isIOS && !standalone) $('install-ios').hidden = false;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      installPrompt = e;
+      $('install-app').hidden = false;
+      $('item-install').hidden = false;
+    });
+    function install() {
+      if (!installPrompt) return;
+      installPrompt.prompt();
+      installPrompt = null;
+      $('install-app').hidden = true;
+      $('item-install').hidden = true;
+    }
+    $('install-app').addEventListener('click', install);
+    $('item-install').addEventListener('click', install);
+
+    // After the game has loaded, so the worker's downloads don't compete with the page's
+    function registerServiceWorker() {
+      const allowed = location.protocol === 'https:' || location.hostname === 'localhost' || params.has('sw');
+      if (!('serviceWorker' in navigator) || !allowed || params.has('nosw')) return;
+      // A new build installs in the background and takes over at the next launch
+      const announce = () => toast('An update is ready: it loads the next time you open the game');
+      const watch = worker => worker && worker.addEventListener('statechange', () => {
+        if (worker.state === 'installed' && navigator.serviceWorker.controller) announce();
+      });
+      navigator.serviceWorker.register('sw.js').then(registration => {
+        // The browser may have found the update before this page asked
+        if (registration.waiting && navigator.serviceWorker.controller) announce();
+        watch(registration.installing);
+        registration.addEventListener('updatefound', () => watch(registration.installing));
+      }).catch(e => console.warn('Open Fodder: no offline copy (' + e + ')'));
+    }
+
+    function toast(text) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = text;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 6000);
+    }
+
+    showSound();
+    showHand();
+    showControls();
+  })();
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>
