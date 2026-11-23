@@ -1,0 +1,14 @@
+# openfodder: one project, one repo; this repo is its main repo (Tom 23.11).
+# The project's one declaration (TOM-4655, it replaced the home's .wataha.toml): its repos, their base branch, its vault
+# folder, who builds it and where its plan lives. Read by box-scripts `project` (setup, run) and the PM's tools; the
+# home ~/workspace/projects/openfodder is this repo's clone. Paths are relative to the box's $QUTE_WORKSPACE (vault) and $QUTE_REPOS (repos).
+version = 1
+slug = "openfodder"
+vault = "vaults/projects/openfodder"
+kind = "pm"
+owner = "pm"            # who builds it: its own (PM openfodder)
+tracker = "work-tracker"  # Linear owns its plan
+
+[[repo]]
+name = "openfodder"
+base = "master"
